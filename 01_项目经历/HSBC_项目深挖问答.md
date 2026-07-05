@@ -194,3 +194,33 @@ Code Node / Function：10%
 
 > 我会先看是 query 改写问题、知识库缺词、Embedding 召回问题，还是 Prompt 使用检索结果的方式不对。对应方案包括补术语、改 chunk 和 metadata、增加 fallback retrieval、提高检索 top-k 后再筛选，以及在输出校验里标记低置信结果。
 
+### Fallback retrieval 是怎么知道这个词和那个词可以换着查的？
+
+短答：
+
+> 它不是凭空知道的，主要来自三类信息：术语库里的别名和同义表达、LLM 的 query rewrite，以及 Embedding 的语义相似召回。
+
+展开回答：
+
+> 第一种是最稳的方式：在术语库里维护标准词、别名和固定 Gloss。比如“银行账户”下面可以维护“户口、账户、银行户口、account”等别名。用户说“开户口”时，系统可以先映射到标准词，再去查固定 Gloss。
+>
+> 第二种是 query rewrite。如果第一次检索没有命中，可以让 LLM 把用户原始表达改写成更标准的检索词，比如把“开户口”改写成“开立银行账户”“申请银行账户”或“account opening”，再查一次。
+>
+> 第三种是 Embedding 语义召回。即使字面不一样，“开户口”“开立账户”“account opening”在向量空间里可能比较接近，所以可以召回相近候选。
+
+边界：
+
+> 在金融和手语场景里，不能完全依赖 Embedding，因为相似不代表可以替换。比如两个金融术语看起来接近，但对应的手语 Gloss 可能不同。所以更稳的策略是：术语库别名优先，LLM rewrite 和 Embedding 作为补充，最后再通过规则或 Prompt 判断召回结果能不能用。
+
+例子：
+
+```text
+用户表达：开户口
+术语库标准词：开立账户
+别名：开户口 / 开户 / 银行账户 / account opening
+固定 Gloss：ACCOUNT_OPEN
+```
+
+面试里可以这样收尾：
+
+> 所以 fallback retrieval 的核心不是让模型随便猜同义词，而是用业务术语库做主约束，再用 query rewrite 和 embedding 提高召回率。

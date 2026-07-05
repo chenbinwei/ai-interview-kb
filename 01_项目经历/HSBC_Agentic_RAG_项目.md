@@ -101,7 +101,7 @@ JSON Validation
 | Text Preprocess | 清理无效字符、标准化标点、做简单实体归一化 |
 | HKSL Grammar Convert | 把原句改成更接近香港手语表达的顺序 |
 | Knowledge Retrieval | 检索金融术语、固定 Gloss、专业表达 |
-| Fallback Retrieval | 对未匹配短语做改写、近义词搜索和二次检索 |
+| Fallback Retrieval | 对未匹配短语做改写、近义词搜索和二次检索；依据主要来自术语库别名、LLM query rewrite 和 Embedding 语义召回 |
 | Function / Code Node | 处理变量替换、Gloss 拼接、JSON 生成等确定性逻辑 |
 | Aggregation | 整合 LLM 输出、检索结果和函数结果 |
 | JSON Validation | 校验 Schema、字段完整性和格式错误，失败时重新生成 |
@@ -153,6 +153,18 @@ Embedding 检索相近规则/术语
 LLM 生成 HKSL Gloss
   ↓
 校验是否符合规则和术语表
+```
+
+Fallback retrieval 可以这样理解：
+
+> 如果用户说法和术语库里的标准词不一致，第一次检索可能查不到。系统会先看术语库里有没有别名和同义表达，再让 LLM 把原始短语改写成更标准的查询词，必要时用 Embedding 找语义相近的候选词，再做第二次检索。金融和手语场景里不能完全依赖语义相似，因为术语替换必须准确，所以更稳的做法是以术语库别名为主，query rewrite 和 embedding 作为补充。
+
+例子：
+
+```text
+用户表达：开户口
+可能改写：开立账户 / 银行账户 / account opening
+再去术语库检索固定 Gloss
 ```
 
 ## 知识库形态怎么讲
