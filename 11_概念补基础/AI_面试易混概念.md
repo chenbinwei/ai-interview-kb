@@ -619,3 +619,118 @@ Fallback：
 ### 一句话总串
 
 > Query Rewrite 负责把问题改好，关键词检索和向量检索负责从知识库里找资料，Top-K 决定拿前几条候选，Hybrid Search 是两种检索一起用，Fallback Retrieval 是第一次没查好时换一种方式再查，最后用术语和 JSON 校验判断结果能不能用。
+
+## JSON 校验、JSON Schema、结构化输出
+
+### JSON 是什么
+
+JSON 可以理解为一种固定格式的数据表述方式，常用于系统之间传数据。
+
+例子：
+
+```json
+{
+  "gloss": ["TODAY", "ME", "BANK", "ACCOUNT_OPEN"],
+  "confidence": 0.86,
+  "unmatched_phrases": []
+}
+```
+
+它比普通文本更适合给下游系统用，因为字段清楚、机器容易解析。
+
+### 只会肉眼看 JSON 的问题
+
+肉眼只能大概看出“像不像”，但系统需要自动判断：
+
+```text
+1. 这是不是合法 JSON？
+2. 必填字段有没有缺？
+3. 字段类型对不对？
+4. 字段值是否符合业务规则？
+```
+
+比如下面这个就不是合法 JSON，因为少了引号：
+
+```text
+{gloss: ["TODAY", "BANK"]}
+```
+
+下面这个虽然是合法 JSON，但不符合业务要求，因为 `gloss` 应该是数组，却变成了字符串：
+
+```json
+{
+  "gloss": "TODAY ME BANK",
+  "confidence": 0.86
+}
+```
+
+### JSON 合法 vs Schema 合法
+
+这两个不是一回事。
+
+```text
+JSON 合法：能不能被 JSON parser 解析。
+Schema 合法：字段名、字段类型、必填项是否符合业务定义。
+```
+
+例子：
+
+```json
+{
+  "gloss": ["TODAY", "ME", "BANK"],
+  "confidence": 0.86
+}
+```
+
+如果业务要求还必须有：
+
+```text
+source_text
+language
+unmatched_phrases
+```
+
+那上面的 JSON 语法没错，但 Schema 校验仍然失败，因为缺字段。
+
+### JSON Mode、Structured Outputs、Pydantic
+
+先按面试够用程度理解：
+
+```text
+JSON Mode：保证模型输出合法 JSON，但不一定字段都对。
+Structured Outputs / JSON Schema：要求输出符合指定字段和类型。
+Pydantic：Python 里常用的 Schema 和类型校验工具。
+```
+
+在工程里，常见流程是：
+
+```text
+LLM 输出
+  ↓
+JSON parser 检查语法
+  ↓
+JSON Schema / Pydantic 检查字段和类型
+  ↓
+业务规则检查
+```
+
+### 校验失败怎么办
+
+常见处理方式：
+
+```text
+1. 简单格式问题：自动修复或让模型按错误信息重生成。
+2. 缺字段/类型错：把校验错误反馈给模型，让它只修正 JSON。
+3. 术语不确定：标记 low confidence，进入人工/专家审核。
+4. 连续失败：停止重试，记录日志，避免死循环。
+```
+
+重试次数一般要有限制，比如 2-3 次。不能无限让模型重试。
+
+### 在 HSBC 项目里怎么说
+
+> 在 HSBC 项目里，JSON 校验不是靠肉眼看，而是分两层：第一层检查模型输出是不是合法 JSON，第二层检查它是否符合我们定义的字段和类型，比如 gloss 是否是数组、unmatched_phrases 是否存在、confidence 是否是数字。校验失败时，可以把错误信息反馈给模型重新生成，或者由 Code Node 做简单修复；如果连续失败，就标记为低置信，记录 case，进入人工或专家反馈。
+
+### 面试一句话
+
+> JSON 校验分语法校验和 Schema 校验。语法校验看能不能解析，Schema 校验看字段、类型和必填项是否符合业务要求；失败后有限重试，仍失败就低置信或转人工，不能让错误 JSON 直接进入下游动画系统。
