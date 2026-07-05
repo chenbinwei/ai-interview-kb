@@ -166,3 +166,67 @@ HSBC HKSL Gloss 项目更适合强调这些指标：
 面试总回答：
 
 > BLEU 和 ROUGE 属于传统文本重合指标，可以作为参考，但我的项目更关注输出能不能被下游手语动画系统使用。所以核心评估会看 JSON 格式正确、金融术语正确、HKSL 语序合理，以及专家反馈后的可用率。
+
+## 普通 RAG、复合 RAG、Agentic RAG
+
+### RAG 能不能复合？
+
+可以。RAG 不一定只能是“检索一次、生成一次”。工程里经常会做成复合流程，比如：
+
+```text
+Query Rewrite -> 多路检索 -> Rerank -> Context Compression -> Generate
+```
+
+也可以有：
+
+- Hybrid Search：BM25 + 向量检索
+- RAG-Fusion：把一个问题改写成多个 query，再融合检索结果
+- Multi-hop RAG：第一轮检索结果决定下一轮检索方向
+- GraphRAG：用知识图谱补强多跳关系推理
+
+所以，不能简单说“只要多检索几次就是 Agentic RAG”。
+
+### 普通 RAG 是什么
+
+最基础的 RAG 通常是固定流程：
+
+```text
+用户问题 -> 检索 Top-K 文档 -> 拼进 Prompt -> LLM 生成
+```
+
+它的特点是流程比较固定，系统不会太多判断“现在的信息够不够”“下一步要不要换检索词”“是否要调用别的工具”。
+
+### 复合 RAG 是什么
+
+复合 RAG 是在普通 RAG 上加优化模块，但流程大多还是工程上预设好的。
+
+例如：
+
+```text
+先 query rewrite，再检索，再 rerank，再生成。
+```
+
+这比普通 RAG 强，但它不一定有 Agent 的动态决策。
+
+### Agentic RAG 是什么
+
+Agentic RAG 的重点是：系统会根据中间结果决定下一步动作。
+
+例如：
+
+```text
+第一次检索结果不够 -> 改写短语再检索
+术语没命中 -> 查别名或 fallback retrieval
+JSON 校验失败 -> 重新生成或走修复节点
+术语冲突 -> 优先采用术语库结果
+```
+
+它更像一个带控制流的工作流，而不是一次固定检索。
+
+### 在 HSBC 项目里怎么说
+
+> 我理解 RAG 本身可以做得很复杂，比如 query rewrite、rerank、hybrid search 都属于 RAG 优化。但我把这个项目称为 Agentic RAG，是因为它不是固定的一次检索生成，而是把 HKSL Gloss 生成拆成多步：预处理、语法转换、术语检索、fallback retrieval、函数/代码节点处理、聚合和 JSON 校验。系统会根据检索结果和校验结果决定是否继续检索、改写短语或重新生成，所以更接近 Agentic Workflow + RAG。
+
+### 面试一句话
+
+> 普通 RAG 更像固定管道，复合 RAG 是把检索链路做得更强，而 Agentic RAG 的关键是有动态决策：系统会判断当前信息够不够、下一步查什么、是否重试或调用工具。
