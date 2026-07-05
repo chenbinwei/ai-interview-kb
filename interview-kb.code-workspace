@@ -1,0 +1,30 @@
+{
+  "folders": [
+    {
+      "name": "AI Interview KB",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "editor.wordWrap": "on",
+    "editor.minimap.enabled": false,
+    "explorer.compactFolders": false,
+    "files.defaultLanguage": "markdown",
+    "files.exclude": {
+      "**/.DS_Store": true
+    },
+    "search.exclude": {
+      "**/.DS_Store": true
+    },
+    "markdown.preview.breaks": true,
+    "workbench.startupEditor": "readme"
+  },
+  "extensions": {
+    "recommendations": [
+      "yzhang.markdown-all-in-one",
+      "bierner.markdown-mermaid",
+      "streetsidesoftware.code-spell-checker"
+    ]
+  }
+}
+

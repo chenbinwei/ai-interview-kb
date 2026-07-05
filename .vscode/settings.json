@@ -1,0 +1,14 @@
+{
+  "editor.wordWrap": "on",
+  "editor.minimap.enabled": false,
+  "explorer.compactFolders": false,
+  "files.defaultLanguage": "markdown",
+  "files.exclude": {
+    "**/.DS_Store": true
+  },
+  "search.exclude": {
+    "**/.DS_Store": true
+  },
+  "markdown.preview.breaks": true
+}
+
