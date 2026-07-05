@@ -231,6 +231,35 @@ JSON 校验失败 -> 重新生成或走修复节点
 
 > 普通 RAG 更像固定管道，复合 RAG 是把检索链路做得更强，而 Agentic RAG 的关键是有动态决策：系统会判断当前信息够不够、下一步查什么、是否重试或调用工具。
 
+## Agent、Tool、Workflow、设计模式
+
+### 这些是不是术语？
+
+是的，但它们不是同一层级的概念。
+
+```text
+Agent = 系统
+Tool = 单个可调用能力
+Workflow = 固定流程
+ReAct / Plan-and-Execute / Reflection = Agent 的运行模式或设计模式
+```
+
+### 怎么区分
+
+| 概念 | 一句话 |
+|---|---|
+| Agent | 围绕目标做决策和行动的系统 |
+| Tool | 被 Agent 或 Workflow 调用的函数、API、检索器 |
+| Workflow | 人提前编排好的固定步骤 |
+| ReAct | Agent 边想、边调用工具、边观察结果 |
+| Plan-and-Execute | Agent 先规划完整步骤，再逐步执行 |
+| Reflection | Agent 执行后反思哪里不好，再修正 |
+| Multi-Agent | 多个 Agent 分角色协作 |
+
+### 面试一句话
+
+> Agent 是系统形态，Tool 是原子能力，Workflow 是固定编排，ReAct、Plan-and-Execute、Reflection 这些是 Agent 的运行模式。我的 HSBC 项目更接近 Agentic Workflow，因为主流程固定，但有 fallback、重试、校验和人工审核这些动态控制。
+
 ## Query Rewrite
 
 ### 是什么
