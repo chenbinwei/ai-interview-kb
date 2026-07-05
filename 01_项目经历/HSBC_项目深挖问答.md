@@ -381,6 +381,14 @@ LLM 输出：BANK_CARD
 >
 > Code Node 则更偏工程处理。它可以补一些默认字段、拼接检索到的标准 Gloss、把校验错误返回给模型重试，或者在连续失败时标记 low confidence，避免错误结果直接进入下游动画生成。
 
+如果追问“这个是人工检查吗”：
+
+> 不是每条都靠人工肉眼检查。更准确地说，是人先定义规则和 Schema，比如哪些字段必填、字段类型是什么、confidence 范围是多少，然后系统用 JSON parser、JSON Schema、Pydantic 或 Code Node 自动校验。人工或专家主要处理两类问题：一类是校验连续失败的 bad case，另一类是 Gloss 语义、术语和手语表达是否真的正确。
+
+如果追问“Parser 有哪些方法”：
+
+> 最基础的是标准 JSON parser，比如 Python 的 `json.loads()` 或 JavaScript 的 `JSON.parse()`，它们负责判断输出是不是合法 JSON。如果模型多输出了解释文字，可以先提取 JSON 块再解析，但这只是补救。更稳的方式是结合 JSON Mode、Structured Outputs 或 Pydantic，让模型输出尽量符合固定结构，再由 Schema 自动验证。
+
 面试总结：
 
 ```text
