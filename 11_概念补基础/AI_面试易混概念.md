@@ -734,3 +734,167 @@ JSON Schema / Pydantic 检查字段和类型
 ### 面试一句话
 
 > JSON 校验分语法校验和 Schema 校验。语法校验看能不能解析，Schema 校验看字段、类型和必填项是否符合业务要求；失败后有限重试，仍失败就低置信或转人工，不能让错误 JSON 直接进入下游动画系统。
+
+## Parser、Schema、Code Node
+
+### 先用一句话理解
+
+```text
+Parser：把模型输出的字符串读成机器能处理的数据。
+Schema：规定这个数据必须长什么样。
+Code Node：在工作流里用代码做确定性处理和校验。
+```
+
+它们通常是连在一起的：
+
+```text
+LLM 输出文本
+  ↓
+Parser 解析
+  ↓
+Schema 校验
+  ↓
+Code Node 修复 / 拼接 / 判断是否重试
+```
+
+### Parser 是什么
+
+Parser 就是解析器。它负责把一段字符串转换成程序能处理的数据结构。
+
+比如模型输出：
+
+```json
+{
+  "gloss": ["TODAY", "ME", "BANK", "ACCOUNT_OPEN"],
+  "confidence": 0.86
+}
+```
+
+在 Python 里可以用 `json.loads()` 把它从字符串变成字典；在 JavaScript 里可以用 `JSON.parse()` 把它变成对象。
+
+如果模型输出成这样：
+
+```text
+好的，下面是结果：
+{"gloss": ["TODAY", "BANK"]}
+```
+
+或者这样：
+
+```text
+{gloss: ["TODAY", "BANK"]}
+```
+
+parser 就可能失败，因为第一种混了额外解释文字，第二种不是合法 JSON。
+
+面试里可以这样说：
+
+> Parser 解决的是“模型输出能不能被机器读懂”的问题。它先不关心业务对不对，只看格式能不能被解析。
+
+### Schema 是什么
+
+Schema 可以理解为数据格式约定，类似一张表格模板。它规定：
+
+```text
+必须有哪些字段
+每个字段是什么类型
+哪些字段可以为空
+字段值有没有范围限制
+```
+
+比如 HSBC HKSL Gloss 项目里可以有这样的业务约定：
+
+```text
+source_text：原始文本，字符串
+language：输入语言，字符串
+gloss：Gloss 列表，数组
+unmatched_phrases：未匹配短语，数组
+confidence：置信度，数字
+```
+
+下面这个 JSON 语法上是合法的：
+
+```json
+{
+  "gloss": "TODAY ME BANK",
+  "confidence": "high"
+}
+```
+
+但它不符合 Schema，因为：
+
+```text
+gloss 应该是数组，不应该是字符串。
+confidence 应该是数字，不应该是 "high"。
+source_text、language、unmatched_phrases 可能缺失。
+```
+
+面试里可以这样说：
+
+> JSON parser 只检查语法，Schema 检查字段和类型。一个输出可能是合法 JSON，但仍然不符合业务 Schema。
+
+### Code Node 是什么
+
+Code Node 是 Dify、n8n 这类工作流工具里的“代码节点”。它不是让模型自由发挥，而是用确定性代码处理某一步。
+
+常见用途：
+
+```text
+1. 检查 JSON 字段是否完整。
+2. 给缺失字段补默认值，比如 unmatched_phrases 补成 []。
+3. 把检索结果和模型输出拼接成最终 JSON。
+4. 检查 gloss 是否是数组、confidence 是否是数字。
+5. 返回错误信息，让上游 LLM 重新生成。
+6. 连续失败时标记 low confidence 或 needs review。
+```
+
+它和 LLM 的区别：
+
+```text
+LLM：适合语义理解、改写、生成初稿。
+Code Node：适合规则固定、必须稳定的处理。
+```
+
+### 为什么需要它们
+
+因为 Prompt 里写“请输出 JSON”不等于工程上真的可靠。模型可能：
+
+```text
+多输出解释文字
+字段名写错
+数组写成字符串
+数字写成文字
+漏掉必填字段
+```
+
+如果下游是手语动画系统，它需要的是稳定的结构化数据，不能靠人工肉眼看。所以要用 parser、Schema 和 Code Node 把模型输出变成可检查、可修复、可追踪的工程流程。
+
+### 在 HSBC 项目里怎么串
+
+可以这样理解：
+
+```text
+用户输入：我今天去银行开户
+  ↓
+LLM / Workflow 生成 HKSL Gloss JSON 字符串
+  ↓
+Parser 检查这是不是合法 JSON
+  ↓
+Schema 检查 gloss、confidence、unmatched_phrases 等字段是否符合要求
+  ↓
+Code Node 做简单修复、字段补齐、结果拼接或返回错误
+  ↓
+如果通过，交给下游动画系统；如果失败，重试或标记人工审核
+```
+
+面试回答：
+
+> 在我的项目里，Prompt 约束只是第一层。模型输出后，还需要 parser 检查它是不是合法 JSON，再用 Schema 检查字段和类型，比如 gloss 必须是数组、confidence 必须是数字、unmatched_phrases 必须存在。Code Node 则负责一些确定性的逻辑，比如补默认字段、拼接检索结果、返回校验错误或触发重试。这样可以避免错误格式直接进入下游手语动画系统。
+
+### 容易踩坑
+
+不要把 Schema 只理解成数据库 Schema。在这里它更多指 JSON 输出结构的约定。
+
+不要把 Code Node 说成 Agent 自己思考。Code Node 更像工作流里的固定程序步骤。
+
+不要说“parser 能判断 Gloss 对不对”。Parser 只能判断格式能不能读；Gloss 对不对还要靠术语库、规则库和专家反馈。
