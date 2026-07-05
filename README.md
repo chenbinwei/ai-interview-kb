@@ -8,8 +8,9 @@
 2. `01_项目经历/HSBC_Agentic_RAG_项目.md`
 3. `01_项目经历/HSBC_项目深挖问答.md`
 4. `09_高频Top30/Top30_必背.md`
-5. `10_模拟面试记录/README.md`
-6. `12_问题池/面试追问总池.md`
+5. `05_Prompt工程/Prompt_设计与结构化输出.md`
+6. `10_模拟面试记录/README.md`
+7. `12_问题池/面试追问总池.md`
 
 ## 使用方式
 
@@ -26,14 +27,15 @@
 - RAG / fallback retrieval
 - Query Rewrite / Hybrid Search / Top-K
 - JSON 校验、Parser、Schema、Code Node
+- Prompt 设计与结构化输出
 
 接下来优先练：
 
-1. 可用比例提升 20%+ 怎么定义和统计
-2. 专家反馈和自动指标不一致听谁的
-3. Embedding 模型怎么评估
-4. 为什么 Dify 足够，什么时候需要 LangGraph
-5. 如果上线部署，工程化怎么补
+1. Agent 是什么？Agent 和 Chatbot 有什么区别？
+2. ReAct 是什么？
+3. Plan-and-Execute 是什么？
+4. Agent 如何防止死循环？
+5. Agent 如何减少幻觉？
 
 完整追问路线看：
 
