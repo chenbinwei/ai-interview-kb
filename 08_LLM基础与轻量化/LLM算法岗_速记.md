@@ -92,11 +92,36 @@
 
 ## Attention 和 Q/K/V
 
-### Attention 公式
+### “Token 互相看”是什么意思
+
+> “互相看”不是字面意思，而是每个 token 都会和其他 token 计算向量相关性，判断哪些上下文对自己更重要，再把重要 token 的信息汇总进自己的新表示里。
+
+可以按这条链理解：
 
 ```text
-Attention(Q, K, V) = softmax(QK^T / sqrt(d_k)) V
+token 向量
+-> Q/K 向量关系
+-> 相关性分数
+-> softmax 权重
+-> 加权汇总 V
+-> 融合上下文后的 token 表示
 ```
+
+比如句子是：
+
+```text
+我 今天 去 银行 办理 业务
+```
+
+处理“银行”这个 token 时，它可能会更关注“办理”“业务”，因为这些词能帮助模型判断这里的“银行”是金融机构，而不是河岸。
+
+### Attention 公式
+
+$$
+\mathrm{Attention}(Q, K, V)
+=
+\mathrm{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V
+$$
 
 面试先不用推导，记住每一项的含义：
 
@@ -109,9 +134,60 @@ softmax = 把分数变成权重
 乘 V = 按权重汇总上下文信息
 ```
 
+每个 token 的原始表示是 `X`，模型会通过三组可学习参数生成 Q/K/V：
+
+$$
+Q = XW_Q,\quad K = XW_K,\quad V = XW_V
+$$
+
 ### 口语解释
 
 > Q/K/V 可以理解成一次检索。Query 是“我现在需要什么”，Key 是“每个位置有什么特征可以被匹配”，Value 是“真正拿来汇总的信息”。模型先用 Q 和 K 算相似度，再用这个相似度对 V 加权求和，得到当前 token 的上下文表示。
+
+### Softmax 是什么
+
+> Softmax 是把一组分数转成一组权重的函数。它会把所有值变成正数，并让它们加起来等于 1。
+
+公式：
+
+$$
+\mathrm{softmax}(z_i)
+=
+\frac{e^{z_i}}{\sum_j e^{z_j}}
+$$
+
+在 Attention 里，softmax 的作用是：
+
+```text
+把 QK^T 得到的相关性分数
+变成每个 token 应该被关注多少的注意力权重
+```
+
+注意：
+
+> Softmax 不只是普通归一化。因为它用了指数函数，会放大高分和低分的差距，让模型更明确地关注高相关 token。
+
+### 为什么除以 sqrt(d_k)
+
+> `QK^T` 是向量点积。维度 `d_k` 越大，点积结果可能越大。如果分数太大，softmax 会变得过于尖锐，某一个 token 权重接近 1，其他接近 0，训练会不稳定。
+
+所以要做缩放：
+
+$$
+\frac{QK^T}{\sqrt{d_k}}
+$$
+
+面试一句话：
+
+> 除以 `sqrt(d_k)` 是为了避免 Q/K 点积过大导致 softmax 饱和、梯度变小，从而让训练更稳定。
+
+### Self-Attention 复杂度
+
+> Self-Attention 的缺点是每个 token 都要和所有 token 算相关性。序列长度是 `n` 时，注意力矩阵大小是 `n x n`，所以时间和显存压力大致是 `O(n^2)`。
+
+面试一句话：
+
+> Transformer 更容易并行，但长上下文会贵，因为 Self-Attention 对序列长度是平方复杂度。
 
 ### Multi-Head Attention
 
