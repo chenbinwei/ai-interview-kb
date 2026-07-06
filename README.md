@@ -10,8 +10,9 @@
 4. `02_Agent核心机制/Agent_核心机制与设计模式.md`
 5. `09_高频Top30/Top30_必背.md`
 6. `05_Prompt工程/Prompt_设计与结构化输出.md`
-7. `10_模拟面试记录/README.md`
-8. `12_问题池/面试追问总池.md`
+7. `08_LLM基础与轻量化/LLM算法岗_速记.md`
+8. `10_模拟面试记录/README.md`
+9. `12_问题池/面试追问总池.md`
 
 ## 使用方式
 
@@ -32,14 +33,16 @@
 - Agent / Chatbot 区别
 - Agent 常见设计模式
 - ReAct 基础
+- LLM 算法岗自我介绍
+- Transformer / QKV / KV Cache / LoRA / 量化速记
 
 接下来优先练：
 
-1. Plan-and-Execute 是什么？
-2. Agent 如何防止死循环？
-3. Agent 如何减少幻觉？
-4. Multi-Agent 适合什么场景？
-5. 为什么不用单 Agent？
+1. Transformer 和 Attention/QKV
+2. KV Cache 和推理加速
+3. LoRA / SFT / 量化 / 剪枝
+4. LLM 算法岗自我介绍
+5. Agent 如何防止死循环？
 
 完整追问路线看：
 
