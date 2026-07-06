@@ -101,7 +101,11 @@ $$
 \mathrm{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V
 $$
 
-面试先不用推导，记住每一项的含义：
+面试先不用推导，先记住一句话：
+
+> Attention 先用 Q 和 K 算出 token 之间的相关性分数，再用 softmax 把分数变成注意力权重，最后用这个权重去加权汇总 V。
+
+每一项的含义：
 
 ```text
 Q = Query：当前 token 想找什么信息
@@ -112,11 +116,139 @@ softmax = 把分数变成权重
 乘 V = 按权重汇总上下文信息
 ```
 
-每个 token 的原始表示是 `X`，模型会通过三组可学习参数生成 Q/K/V：
+### 从 X 到 Q/K/V
+
+假设一句话有 `n` 个 token，每个 token 的 embedding 维度是 `d_model`，那么输入矩阵是：
+
+$$
+X \in \mathbb{R}^{n \times d_{model}}
+$$
+
+其中每一行 `x_i` 是第 `i` 个 token 的向量表示。
+
+模型会用三组可学习参数，把同一个输入 `X` 投影成 Q、K、V：
 
 $$
 Q = XW_Q,\quad K = XW_K,\quad V = XW_V
 $$
+
+维度是：
+
+$$
+W_Q \in \mathbb{R}^{d_{model} \times d_k},\quad
+W_K \in \mathbb{R}^{d_{model} \times d_k},\quad
+W_V \in \mathbb{R}^{d_{model} \times d_v}
+$$
+
+$$
+Q \in \mathbb{R}^{n \times d_k},\quad
+K \in \mathbb{R}^{n \times d_k},\quad
+V \in \mathbb{R}^{n \times d_v}
+$$
+
+`W_Q/W_K/W_V` 不是人工规则，而是训练时学出来的参数矩阵。
+
+### QK^T 在算什么
+
+$$
+S = QK^T
+$$
+
+维度是：
+
+$$
+(n \times d_k)(d_k \times n)=n \times n
+$$
+
+所以 `S` 是一个注意力分数矩阵：
+
+$$
+s_{ij}=q_i k_j^T
+$$
+
+意思是：
+
+```text
+第 i 个 token 的 Query
+和第 j 个 token 的 Key
+有多相关
+```
+
+这里的 `T` 是 transpose，转置。因为 `K` 原本是 `n x d_k`，转置后变成 `d_k x n`，才能和 `Q` 相乘，得到 `n x n` 的两两相关性矩阵。
+
+单个 token 写法和矩阵写法是同一件事：
+
+```text
+原始单个分数：s_ij = q_i · k_j
+原始矩阵分数：S = QK^T
+```
+
+缩放之后可以写成：
+
+$$
+R=\frac{S}{\sqrt{d_k}}=\frac{QK^T}{\sqrt{d_k}}
+$$
+
+其中：
+
+$$
+r_{ij}=\frac{s_{ij}}{\sqrt{d_k}}
+$$
+
+### Softmax 之后得到什么
+
+$$
+A=\mathrm{softmax}(R)
+=
+\mathrm{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)
+$$
+
+其中：
+
+$$
+A \in \mathbb{R}^{n \times n}
+$$
+
+`A` 是注意力权重矩阵，里面的每个元素可以写成：
+
+$$
+\alpha_{ij}
+$$
+
+意思是：
+
+```text
+第 i 个 token
+应该关注第 j 个 token 多少
+```
+
+每一行权重加起来等于 1：
+
+$$
+\sum_j \alpha_{ij}=1
+$$
+
+### 最后为什么要乘 V
+
+$$
+O = AV
+$$
+
+维度是：
+
+$$
+(n \times n)(n \times d_v)=n \times d_v
+$$
+
+第 `i` 个输出向量是：
+
+$$
+o_i=\sum_{j=1}^{n}\alpha_{ij}v_j
+$$
+
+意思是：
+
+> 第 i 个 token 会根据注意力权重，把所有 token 的 Value 信息加权汇总，得到融合上下文后的新表示。
 
 ### 口语解释
 
@@ -129,15 +261,17 @@ $$
 公式：
 
 $$
-\mathrm{softmax}(z_i)
+\mathrm{softmax}(r_i)
 =
-\frac{e^{z_i}}{\sum_j e^{z_j}}
+\frac{e^{r_i}}{\sum_j e^{r_j}}
 $$
+
+这里的 `r_i` 只是泛指 softmax 输入里的第 `i` 个分数。放到 Attention 里，更建议写成 `r_ij`，也就是第 `i` 个 Query 和第 `j` 个 Key 的缩放后相关性分数，避免和最终输出向量混在一起。
 
 在 Attention 里，softmax 的作用是：
 
 ```text
-把 QK^T 得到的相关性分数
+把缩放后的相关性分数 R
 变成每个 token 应该被关注多少的注意力权重
 ```
 
@@ -170,6 +304,36 @@ $$
 ### Multi-Head Attention
 
 > Multi-Head Attention 是把注意力拆成多个头，每个头在不同子空间里看关系。有的头可能更关注语法关系，有的头更关注长距离依赖。最后把多个头的结果拼起来，再经过线性层融合。
+
+### Attention 符号表
+
+| 符号 | 含义 | 常见维度 |
+|---|---|---|
+| `n` | token 数量 | 标量 |
+| `d_model` | 输入 embedding / hidden 维度 | 标量 |
+| `d_k` | Query / Key 维度 | 标量 |
+| `d_v` | Value 维度 | 标量 |
+| `X` | 输入 token 表示矩阵 | `n x d_model` |
+| `W_Q` | Query 投影矩阵 | `d_model x d_k` |
+| `W_K` | Key 投影矩阵 | `d_model x d_k` |
+| `W_V` | Value 投影矩阵 | `d_model x d_v` |
+| `Q` | Query 矩阵 | `n x d_k` |
+| `K` | Key 矩阵 | `n x d_k` |
+| `V` | Value 矩阵 | `n x d_v` |
+| `S` | 注意力原始分数矩阵 | `n x n` |
+| `R` | 缩放后的注意力分数矩阵 | `n x n` |
+| `A` | softmax 后的注意力权重矩阵 | `n x n` |
+| `O` | Attention 输出 | `n x d_v` |
+
+最短记忆链：
+
+```text
+X -> Q/K/V
+QK^T -> 分数矩阵 S
+S / sqrt(d_k) -> 缩放分数矩阵 R
+softmax(R) -> 权重矩阵 A
+A V -> 融合上下文后的输出 O
+```
 
 ## Masked Self-Attention
 
