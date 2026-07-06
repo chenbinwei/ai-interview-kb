@@ -11,8 +11,9 @@
 5. `09_高频Top30/Top30_必背.md`
 6. `05_Prompt工程/Prompt_设计与结构化输出.md`
 7. `08_LLM基础与轻量化/LLM算法岗_速记.md`
-8. `10_模拟面试记录/README.md`
-9. `12_问题池/面试追问总池.md`
+8. `13_自主智能与创始人面试/自主智能行业与面试速记.md`
+9. `10_模拟面试记录/README.md`
+10. `12_问题池/面试追问总池.md`
 
 ## 使用方式
 
@@ -35,14 +36,16 @@
 - ReAct 基础
 - LLM 算法岗自我介绍
 - Transformer / QKV / KV Cache / LoRA / 量化速记
+- 自主智能 / Agentic AI / 具身智能创始人面试速记
 
 接下来优先练：
 
-1. Transformer 和 Attention/QKV
-2. KV Cache 和推理加速
-3. LoRA / SFT / 量化 / 剪枝
-4. LLM 算法岗自我介绍
-5. Agent 如何防止死循环？
+1. 自主智能是什么，和 Agent / Chatbot 的区别
+2. 自主智能系统核心模块和行业瓶颈
+3. 强化学习基础：state / action / reward / policy / value
+4. Transformer 和 Attention/QKV
+5. KV Cache 和推理加速
+6. LoRA / SFT / 量化 / 剪枝
 
 完整追问路线看：
 
