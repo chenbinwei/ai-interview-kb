@@ -44,6 +44,52 @@
 
 > Transformer 主要由词向量、位置编码、多头自注意力、前馈网络、残差连接和 LayerNorm 组成。和 RNN 不同，它不按时间一步步处理序列，而是用 Self-Attention 计算 token 之间的相关性，所以更适合并行训练。对于 GPT 这类自回归模型，会用 masked self-attention，只允许当前位置看到前面的 token，再预测下一个 token。
 
+### 深挖追问
+
+#### 为什么 Transformer 比 RNN 更适合大模型？
+
+> RNN 是按时间步顺序处理序列的，长距离依赖和并行训练都比较困难。Transformer 用 Self-Attention 一次性计算序列中 token 之间的关系，训练并行度更高，也更容易扩展到大模型和长上下文。
+
+#### Encoder-only / Decoder-only / Encoder-Decoder 区别
+
+| 架构 | 代表 | 特点 | 适合任务 |
+|---|---|---|---|
+| Encoder-only | BERT | 双向看上下文 | 分类、抽取、理解 |
+| Decoder-only | GPT / LLaMA | 只能看前文，自回归生成 | 对话、续写、代码生成 |
+| Encoder-Decoder | T5 | Encoder 理解输入，Decoder 生成输出 | 翻译、摘要、结构化生成 |
+
+面试一句话：
+
+> 现在主流 LLM 多是 decoder-only，因为它天然适合 next token prediction 和开放式生成。
+
+#### Pre-LN 和 Post-LN
+
+> LayerNorm 放在子层前面叫 Pre-LN，放在残差后面叫 Post-LN。大模型训练里 Pre-LN 更常见，因为梯度更稳定，深层网络更容易训练。
+
+#### LayerNorm 和 RMSNorm
+
+> LayerNorm 会做均值和方差归一化；RMSNorm 只按均方根缩放，不减均值，计算更简单。很多 LLM 使用 RMSNorm，是为了降低计算开销并保持训练稳定。
+
+#### FFN / MLP / SwiGLU
+
+> Transformer 里的 FFN 也叫 MLP，负责对每个 token 的表示做非线性变换。很多现代 LLM 会用 SwiGLU 这类门控激活，比传统 ReLU/GELU 表达能力更强。
+
+#### RoPE 是什么
+
+> RoPE 是 Rotary Position Embedding，旋转位置编码。它不是简单把位置向量加到 embedding 上，而是在 Q/K 空间里用旋转方式注入相对位置信息。很多 LLaMA 系模型使用 RoPE，因为它对长度外推和相对位置建模比较友好。
+
+#### MHA / MQA / GQA
+
+| 名称 | 含义 | 作用 |
+|---|---|---|
+| MHA | Multi-Head Attention | 每个头都有自己的 Q/K/V |
+| MQA | Multi-Query Attention | 多个 Q 头共享一组 K/V |
+| GQA | Grouped-Query Attention | 多组 Q 共享较少组 K/V |
+
+面试一句话：
+
+> MQA/GQA 的核心是减少 K/V 头的数量，降低 KV Cache 显存和带宽压力，让推理更高效。GQA 是 MHA 和 MQA 之间的折中。
+
 ## Attention 和 Q/K/V
 
 ### Attention 公式
@@ -151,6 +197,67 @@ LoRA 是压缩模型。
 LoRA 是参数高效微调。它减少训练时需要更新的参数量，但不等同于量化或剪枝。
 ```
 
+### 深挖追问
+
+#### LoRA 一般加在哪里？
+
+> LoRA 通常加在 Transformer 的线性层上，最常见是 Attention 里的 q_proj、v_proj，有时也会加 k_proj、o_proj 或 MLP 层。加在哪里取决于任务和显存预算。
+
+面试稳妥说法：
+
+> 如果只做轻量适配，常见做法是先加 q_proj 和 v_proj；如果任务差异更大，可以扩展到更多投影层或 MLP 层，但训练参数和显存也会上升。
+
+#### rank r 是什么？
+
+> rank r 控制 LoRA 低秩矩阵的容量。r 越大，可训练参数越多，表达能力更强，但显存和过拟合风险也更高。r 太小可能学不动任务，r 太大又接近完整微调的成本。
+
+#### alpha 是什么？
+
+> alpha 是 LoRA 更新量的缩放系数，常和 rank 一起决定 LoRA 对原模型的影响强度。可以粗略理解为：rank 控制容量，alpha 控制 LoRA 更新对原模型输出的影响幅度。
+
+#### LoRA 为什么能减少灾难性遗忘？
+
+> 因为原模型权重被冻结，没有直接被新任务数据覆盖。LoRA 只训练额外 adapter，所以原模型通用能力更容易保留。需要不同任务时，也可以切换不同 adapter。
+
+#### LoRA 和全量微调区别
+
+| 维度 | 全量微调 | LoRA |
+|---|---|---|
+| 更新参数 | 更新全部或大部分权重 | 冻结原模型，只训练 adapter |
+| 显存成本 | 高 | 低 |
+| 训练速度 | 慢 | 快 |
+| 多任务管理 | 每个任务一套模型成本高 | 多个 adapter 可切换 |
+| 上限 | 通常更高 | 取决于 rank 和任务差异 |
+
+#### LoRA 和 QLoRA
+
+> QLoRA 是在量化后的基础模型上训练 LoRA。常见做法是把 base model 量化到 4-bit，冻结它，然后训练 LoRA adapter。这样可以大幅降低微调显存。
+
+不要说：
+
+```text
+QLoRA 是把 LoRA 量化。
+```
+
+更准确：
+
+```text
+QLoRA = 4-bit 量化 base model + LoRA adapter 微调。
+```
+
+#### LoRA 可以合并回模型吗？
+
+> 可以。训练完成后，可以把 LoRA 的增量权重 merge 回原模型权重，推理时就不需要单独加载 adapter。但如果要频繁切换多个任务，也可以保留 adapter 形式。
+
+#### LoRA 的局限
+
+```text
+1. 如果任务和原模型能力差距很大，LoRA 可能不够。
+2. rank 太小会欠拟合，太大又增加成本。
+3. 数据质量仍然很关键，LoRA 不能解决脏数据问题。
+4. 它主要降低微调成本，不直接解决推理压缩问题。
+```
+
 ## 量化 Quantization
 
 > 量化是把模型权重或激活从高精度表示，比如 FP16，转换成更低精度，比如 INT8、INT4。这样可以减少显存占用和内存带宽压力，提高推理速度，但可能带来精度损失。
@@ -165,6 +272,117 @@ LoRA 是参数高效微调。它减少训练时需要更新的参数量，但不
 面试一句话：
 
 > 量化的核心 trade-off 是效率和精度。INT8 通常比较稳，INT4 压缩更狠但更容易掉点，需要校准、分组量化或更复杂的方法来控制误差。
+
+### Q4 / Q8 / Q4_K_M 是什么意思
+
+注意：这里的 Q 不是 Attention 里的 Query，而是 Quantization。
+
+```text
+Q8 = 8-bit 量化
+Q4 = 4-bit 量化
+```
+
+本地模型里经常看到：
+
+```text
+Q8_0
+Q6_K
+Q5_K_M
+Q4_K_M
+Q4_0
+Q4_1
+```
+
+可以先这样记：
+
+```text
+数字越大，一般质量越稳，占用越大。
+数字越小，一般越省显存，质量风险越高。
+```
+
+#### K 是什么
+
+> 在 Q4_K_M 里，K 不是 Q/K/V 的 Key，而是 GGUF / llama.cpp 里的 K-quants 量化格式，可以理解成一类改进的分组量化方案，通常比老的 Q4_0、Q4_1 效果更好。
+
+#### M 是什么
+
+> M 通常表示 Medium，是质量和大小之间的中等折中版本。常见还有 S = Small，L = Large。
+
+所以：
+
+```text
+Q4_K_M = 4-bit + K-quants 改进量化方案 + Medium 折中版本
+```
+
+面试稳妥说法：
+
+> 这些后缀不是所有框架的通用标准，主要常见于 GGUF / llama.cpp 本地模型。面试里可以说清大意：Q4 表示 4-bit，K 表示一类改进分组量化，M 表示中等折中版本。
+
+### W4A16 / W8A8
+
+```text
+W = Weight，权重
+A = Activation，激活
+```
+
+| 格式 | 含义 | 特点 |
+|---|---|---|
+| W4A16 | 权重 4-bit，激活 16-bit | 比较常见，显存省，精度较稳 |
+| W8A8 | 权重 8-bit，激活 8-bit | 加速潜力更大，但实现和精度控制更难 |
+| W4A8 | 权重 4-bit，激活 8-bit | 更激进，对 kernel 和校准要求更高 |
+
+### Scale / Zero Point
+
+量化通常不是随便四舍五入，而是把浮点数映射到整数：
+
+```text
+real_value ≈ scale * (quantized_value - zero_point)
+```
+
+```text
+scale：缩放比例
+zero_point：零点偏移
+dequantization：反量化，把低精度值近似还原到浮点计算空间
+```
+
+### Per-tensor / Per-channel / Group-wise
+
+| 粒度 | 含义 | 特点 |
+|---|---|---|
+| Per-tensor | 整个张量共用一套 scale | 简单，但误差可能大 |
+| Per-channel | 每个通道单独 scale | 更准，复杂一些 |
+| Group-wise | 分组量化，每组一套 scale | LLM 里常见，折中效果好 |
+
+面试一句话：
+
+> 量化粒度越细，通常精度越好，但元数据和实现复杂度也更高。
+
+### Calibration 和 Outlier
+
+> Calibration 是用一小批校准数据统计权重或激活分布，决定量化 scale。校准数据如果和真实任务差异很大，量化后效果可能会掉。
+
+> Outlier 是异常大的激活或权重通道。直接全局量化时，outlier 会拉大量化范围，让普通值表示得很粗，导致精度损失。所以很多方法会用 per-channel、group-wise 或特殊 outlier 处理。
+
+### GPTQ / AWQ
+
+> GPTQ 和 AWQ 都是 LLM 里常见的 INT4 权重量化方法。GPTQ 更偏数学优化，逐层最小化量化误差；AWQ 会根据激活分布找出重要权重并保护，量化更快，工程上更实用。
+
+### 量化怎么评估
+
+不要只看模型大小，要同时看：
+
+```text
+显存下降多少
+推理吞吐 tokens/s
+首 token 延迟和总延迟
+perplexity 是否变差
+下游任务准确率
+数学、代码、长文本、专业术语 bad case 是否增加
+```
+
+面试一句话：
+
+> 量化不是压得越狠越好，而是在显存、吞吐、延迟和任务质量之间找平衡。
 
 ## 剪枝 Pruning
 
@@ -196,7 +414,10 @@ Masked Attention：生成时不能看未来。
 KV Cache：缓存历史 K/V，用显存换速度。
 Token：模型处理文本的基本单位。
 LoRA：冻结原模型，只训练低秩 adapter。
+LoRA rank：控制 adapter 容量；alpha：控制更新强度。
+QLoRA：4-bit base model + LoRA 微调。
 量化：降低数值精度，省显存和带宽。
+Q4_K_M：4-bit + K-quants + Medium 折中格式。
 剪枝：删掉不重要结构或参数。
 蒸馏：大模型教小模型。
 Prompt 压缩：少 token，但保留任务关键信息。
