@@ -116,6 +116,46 @@ softmax = 把分数变成权重
 乘 V = 按权重汇总上下文信息
 ```
 
+### GitHub 可视化版
+
+GitHub 上如果公式显示得不直观，优先看这张流程图：
+
+```mermaid
+flowchart LR
+  X["X: 输入 token 表示<br/>n x d_model"] --> Q["Q = XW_Q<br/>n x d_k"]
+  X --> K["K = XW_K<br/>n x d_k"]
+  X --> V["V = XW_V<br/>n x d_v"]
+  Q --> S["S = QK^T<br/>n x n"]
+  K --> S
+  S --> R["R = S / sqrt(d_k)<br/>n x n"]
+  R --> A["A = softmax(R)<br/>n x n"]
+  A --> O["O = A V<br/>n x d_v"]
+  V --> O
+```
+
+最短公式链：
+
+```text
+X
+-> Q = XW_Q, K = XW_K, V = XW_V
+-> S = QK^T
+-> R = S / sqrt(d_k)
+-> A = softmax(R)
+-> O = A V
+```
+
+维度链：
+
+```text
+X:        n x d_model
+W_Q/W_K: d_model x d_k
+W_V:     d_model x d_v
+Q/K:     n x d_k
+V:       n x d_v
+S/R/A:   n x n
+O:       n x d_v
+```
+
 ### 从 X 到 Q/K/V
 
 假设一句话有 `n` 个 token，每个 token 的 embedding 维度是 `d_model`，那么输入矩阵是：
